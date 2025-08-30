@@ -33,3 +33,6 @@ class repeat_customer(customer):
 
 class one_time_customer(customers):
     pass
+
+class no_phone(customer):
+    pass
