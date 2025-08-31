@@ -1,6 +1,8 @@
 class person:
     def __init__(self):
         pass
+    def vacation(self):
+        pass
 
 # workers
 class worker(person):
@@ -35,4 +37,7 @@ class one_time_customer(customers):
     pass
 
 class no_phone(customer):
-    pass
+    pass # 20 a day
+
+class not_paying(castomer):
+    pass # childrens and peaple -- 20 a day
