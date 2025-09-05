@@ -1,3 +1,29 @@
+# POLYGONS
+PARKING_POLYGON = ''
+SUPER_MARKET_POLYGON = ''
+CASHE_REGISTERS_POLYGON = ''
+BUTCHERY_POYLYGON = ''
+WAREHOSE_POLYGON = ''
+
+# OPENING_HOURS
+SUNDAY_OP = '07:30'
+SUNDAY_CL = '21:00'
+MONDAY_OP = '07:30'
+MONDAY_CL = '21:00'
+TUSDAY_OP = '07:30'
+TUSDAY_CL = '21:00'
+WEDNESDAY_OP = '07:30'
+WEDNESDAY_CL = '22:00'
+THURDSDAY_OP = '07:30'
+THURDSDAY_CL = '22:00'
+FRIDAY_OP = '07:00'
+FRIDAY_OP = '15:00'
+# not working in saterday
+
+hilidays = ["2024/01/01", "2024/05/26"] # days without work
+spicial_days = ["2024/01/21", "2024/01/26"] # days with more workers and customers
+
+
 class person:
     def __init__(self):
         pass
@@ -47,6 +73,7 @@ class cursomer(person):
         """
         function to insert log of customer bill
         """
+        pass
 
 class repeat_customer(customer):
     pass
