@@ -121,6 +121,7 @@ class cursomer(person):
         function to insert log of customer bill
         the function get as input time of stay (from stay_time func)
         and return number of the bill in New Shekels with 17% precent
+        the time of the purchase will be the last timestamp at cashier_zone_area
         """
         pass
     def stay_time(self):
