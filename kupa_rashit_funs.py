@@ -105,7 +105,7 @@ def role_accuracy(role):
     if rng is None:
         return 0.0
     lo, hi = rng
-    return random.uniform(lo, hi) ## i need to change it to be random range and not random uniform
+    return random.uniform(lo, hi) 
 
 def make_ids(role, n):
     return [f"{role[:3]}_{i:03d}" for i in range(1, n+1)]
