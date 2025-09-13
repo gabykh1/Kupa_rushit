@@ -80,7 +80,7 @@ OPENING_RULES = {
     # Saturday closed
 }
 
-HOLIDAYS = {datetime(2024,1,1).date(), datetime(2024,5,26).date()}
+HOLIDAYS = {datetime(2024,1,23).date(), datetime(2024,5,26).date()}
 SPECIAL_DAYS = {datetime(2024,1,21).date(), datetime(2024,1,26).date()}
 
 # -------------------------
@@ -105,7 +105,7 @@ def role_accuracy(role):
     if rng is None:
         return 0.0
     lo, hi = rng
-    return random.uniform(lo, hi)
+    return random.uniform(lo, hi) ## i need to change it to be random range and not random uniform
 
 def make_ids(role, n):
     return [f"{role[:3]}_{i:03d}" for i in range(1, n+1)]
@@ -402,8 +402,8 @@ def generate_data(start_date, end_date, out_dir):
 # -------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start", default="2024-01-21", help="Start date YYYY-MM-DD")
-    parser.add_argument("--end",   default="2024-01-27", help="End date YYYY-MM-DD")
+    parser.add_argument("--start", default="2024-01-01", help="Start date YYYY-MM-DD")
+    parser.add_argument("--end",   default="2024-01-30", help="End date YYYY-MM-DD")
     parser.add_argument("--out",   default=".", help="Output directory (default: current folder)")
     args = parser.parse_args()
 
