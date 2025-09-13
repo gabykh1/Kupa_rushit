@@ -279,7 +279,7 @@ def purchase_amount_from_dwell(dwell_minutes):
 
 def build_sale(customer_id, ts, dwell_minutes):
     subtotal = round(purchase_amount_from_dwell(dwell_minutes), 2)
-    tax = round(subtotal * 0.17, 2)
+    tax = round(subtotal * 0.18, 2)
     total = round(subtotal + tax, 2)
     return {
         "sale_id": str(uuid.uuid4())[:8],
