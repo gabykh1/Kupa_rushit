@@ -273,9 +273,9 @@ def emit_points_for_segment(device_id, role, area_key, start_dt, end_dt, detect_
 PAYMENT_METHODS = ["cash", "credit_card", "debit_card", "mobile_pay"]
 
 def purchase_amount_from_dwell(dwell_minutes):
-    base = random.uniform(10, 30)
-    amt = base + math.sqrt(max(0, dwell_minutes)) * random.uniform(2.0, 6.0)
-    return max(5.0, min(amt, 600.0))
+    base = random.uniform(20, 70)
+    amt = base + math.sqrt(max(0, dwell_minutes)) * random.uniform(2.0, 10.0)
+    return max(5.0, min(amt, 1800.0))
 
 def build_sale(customer_id, ts, dwell_minutes):
     subtotal = round(purchase_amount_from_dwell(dwell_minutes), 2)
