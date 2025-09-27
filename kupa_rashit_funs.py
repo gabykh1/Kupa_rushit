@@ -99,6 +99,28 @@ ROLE_CONFIG = {
     "no_phone": {"count": 300, "accuracy_m": None},
     "not_paying": {"count": 300, "accuracy_m": (5, 25)},
 }
+# -------------------------
+# slope - linear regression
+# -------------------------
+VAT_RATE = 0.18        
+MAX_TOTAL_NIS = 1500.0 
+# ---- Foot-traffic trend controls (very slight) ----
+WEEKLY_DECAY_PCT     = 0.005   # ~0.5% fewer customers each new week 
+WEEKLY_SHOCK_PCT     = 0.03    # ±3% weekly shock: some weeks a bit higher/lower
+DAILY_NOISE_PCT      = 0.08    # ±2% day-to-day noise (tiny)
+
+# Minimal weekday seasonality (Mon=0..Sun=6). Keep it subtle.
+WEEKDAY_SEASONALITY = {
+    0: 1.00,  # Mon
+    1: 1.00,  # Tue
+    2: 1.00,  # Wed
+    3: 1.02,  # Thu (slightly busier)
+    4: 1.04,  # Fri (short day but busy)
+    5: 0.00,  # Sat (closed)
+    6: 1.01,  # Sun (tiny bump)
+}
+
+
 
 def role_accuracy(role):
     rng = ROLE_CONFIG[role]["accuracy_m"]
@@ -273,14 +295,25 @@ def emit_points_for_segment(device_id, role, area_key, start_dt, end_dt, detect_
 PAYMENT_METHODS = ["cash", "credit_card", "debit_card", "mobile_pay"]
 
 def purchase_amount_from_dwell(dwell_minutes):
-    base = random.uniform(20, 70)
-    amt = base + math.sqrt(max(0, dwell_minutes)) * random.uniform(2.0, 10.0)
-    return max(5.0, min(amt, 1800.0))
+    base = random.uniform(10, 30)
+    slope = random.uniform(4, 9)  # per minute
+    expected = base + slope * dwell_minutes
+    noise = random.uniform(-0.1, 0.1) * expected
+    amt = expected + noise
+
+    max_subtotal = MAX_TOTAL_NIS / (1.0 + VAT_RATE)
+    return max(5.0, min(amt, max_subtotal))
 
 def build_sale(customer_id, ts, dwell_minutes):
     subtotal = round(purchase_amount_from_dwell(dwell_minutes), 2)
-    tax = round(subtotal * 0.18, 2)
+    tax = round(subtotal * VAT_RATE, 2)
     total = round(subtotal + tax, 2)
+
+    if total > 300:
+        payment_method = random.choice(["credit_card", "debit_card"])
+    else:
+        payment_method = random.choice(PAYMENT_METHODS)
+
     return {
         "sale_id": str(uuid.uuid4())[:8],
         "timestamp": ts.isoformat(),
@@ -288,8 +321,49 @@ def build_sale(customer_id, ts, dwell_minutes):
         "subtotal": subtotal,
         "tax": tax,
         "total": total,
-        "payment_method": random.choice(PAYMENT_METHODS),
+        "payment_method": payment_method,
+        "dwell_minutes": int(dwell_minutes),
     }
+
+def sunday_of(date_obj):
+    """Return the Sunday (week start) for the given date (Sun..Sat week)."""
+    # In Python, Monday=0..Sunday=6. For Sun-start week:
+    # offset = (weekday + 1) % 7
+    return date_obj - timedelta(days=(date_obj.weekday() + 1) % 7)
+
+def build_week_shocks(start_date_obj, end_date_obj):
+    """Create a dict: {week_start_sunday: shock_factor}, one per week in range."""
+    shocks = {}
+    first_week = sunday_of(start_date_obj)
+    d = first_week
+    while d <= end_date_obj:
+        # shock factor in [1-3%, 1+3%]
+        shocks[d] = 1.0 + random.uniform(-WEEKLY_SHOCK_PCT, WEEKLY_SHOCK_PCT)
+        d += timedelta(days=7)
+    return shocks
+
+def traffic_scale_for_date(date_obj, first_week_start, week_shocks):
+    """
+    Very slight weekly decay + weekly shock + tiny daily noise + subtle weekday seasonality.
+    Sunday starts a new 'week index'.
+    """
+    this_week_start = sunday_of(date_obj)
+    week_index = (this_week_start - first_week_start).days // 7  # 0,1,2,...
+
+    # Exponential weekly decay (very slight)
+    week_decay = (1.0 - WEEKLY_DECAY_PCT) ** week_index
+
+    # Weekly shock (some weeks a bit higher/lower)
+    shock = week_shocks.get(this_week_start, 1.0)
+
+    # Tiny daily noise
+    daily = 1.0 + random.uniform(-DAILY_NOISE_PCT, DAILY_NOISE_PCT)
+
+    # Subtle weekday seasonality
+    season = WEEKDAY_SEASONALITY.get(date_obj.weekday(), 1.0)
+
+    return week_decay * shock * daily * season
+
 
 def generate_data(start_date, end_date, out_dir):
     # Ensure output dir exists
@@ -304,6 +378,9 @@ def generate_data(start_date, end_date, out_dir):
 
     start = datetime.fromisoformat(start_date).date()
     end = datetime.fromisoformat(end_date).date()
+    first_week_start = sunday_of(start)
+    WEEK_SHOCKS = build_week_shocks(start, end)
+
 
     repeat_ids = pick_ids("repeat_customer", 100)
 
@@ -314,6 +391,8 @@ def generate_data(start_date, end_date, out_dir):
         if d in HOLIDAYS or wd == 5:
             d += timedelta(days=1)
             continue
+        scale = traffic_scale_for_date(d, first_week_start, WEEK_SHOCKS)
+
 
         # Workers
         for area, s, e in manager_shift(d):
@@ -344,23 +423,41 @@ def generate_data(start_date, end_date, out_dir):
 
         # Customers
         todays_repeat = []
+
+        # Base probabilities
+        p_weekendish = 0.70  # Thu/Fri
+        p_weekday    = 0.35  # Sun/Mon/Tue/Wed
+
+        # Apply scale and clamp between 0–1
+        p_weekendish = min(1.0, max(0.0, p_weekendish * scale))
+        p_weekday    = min(1.0, max(0.0, p_weekday * scale))
+
         for rid in repeat_ids:
-            go_today = (wd in (3,4) and random.random() < 0.7) or (wd in (6,0,1,2) and random.random() < 0.35)
+            go_today = (wd in (3,4) and random.random() < p_weekendish) or \
+                       (wd in (6,0,1,2) and random.random() < p_weekday)
             if special and not go_today and random.random() < 0.15:
                 go_today = True
-            if go_today: todays_repeat.append(rid)
+            if go_today:
+                todays_repeat.append(rid)
 
         one_time_count = random.randint(3,7)
-        if special: one_time_count = int(math.ceil(one_time_count * 1.3))
+        np_count       = random.randint(10,35)
+        nophone_count  = random.randint(15,25)
+
+        # Apply scale and round gently (never negative)
+        one_time_count = max(0, int(round(one_time_count * scale)))
+        np_count       = max(0, int(round(np_count * scale)))
+        nophone_count  = max(0, int(round(nophone_count * scale)))
+
+        if special:
+            one_time_count = int(math.ceil(one_time_count * 1.3))
+            np_count       = int(math.ceil(np_count * 1.3))
+            nophone_count  = int(math.ceil(nophone_count * 1.3))
+
         todays_one_time = pick_ids("one_time_customer", one_time_count)
+        todays_np       = pick_ids("not_paying", np_count)
+        todays_nophone  = pick_ids("no_phone", nophone_count)
 
-        np_count = random.randint(10,35)
-        if special: np_count = int(math.ceil(np_count * 1.3))
-        todays_np = pick_ids("not_paying", np_count)
-
-        nophone_count = random.randint(15,25)
-        if special: nophone_count = int(math.ceil(nophone_count * 1.3))
-        todays_nophone = pick_ids("no_phone", nophone_count)
 
         for cust_id in todays_repeat + todays_one_time + todays_np:
             role = "repeat_customer" if cust_id in todays_repeat else ("not_paying" if cust_id in todays_np else "one_time_customer")
@@ -387,7 +484,7 @@ def generate_data(start_date, end_date, out_dir):
         d += timedelta(days=1)
 
     geo_df = pd.DataFrame(georows, columns=["device_id", "lat", "lon", "timestamp", "accuracy_m", "role", "area"])
-    sales_df = pd.DataFrame(sales, columns=["sale_id", "timestamp", "customer_id", "subtotal", "tax", "total", "payment_method"])
+    sales_df = pd.DataFrame(sales, columns=["sale_id", "timestamp", "customer_id", "subtotal", "tax", "total", "payment_method", "dwell_minutes"])
 
     geo_path = os.path.join(out_dir, "geolocation.csv")
     sales_path = os.path.join(out_dir, "log_sales.csv")
