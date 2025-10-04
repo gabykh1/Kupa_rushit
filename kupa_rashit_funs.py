@@ -1,16 +1,13 @@
-"""
-Supermarket geo + sales simulator
-Outputs:
-  geolocation.csv: device_id, lat, lon, timestamp, accuracy_m, role, area
-  log_sales.csv:   sale_id, timestamp, customer_id, subtotal, tax, total, payment_method
+# """
+# Supermarket geo + sales simulator
+# Outputs:
+#   geolocation.csv: device_id, lat, lon, timestamp, accuracy_m, role, area
+#   log_sales.csv:   sale_id, timestamp, customer_id, subtotal, tax, total, payment_method
 
-Run:
-  python kupa_rashit_funs.py --start 2024-01-21 --end 2024-01-27 --out .
+# Run:
+#   python kupa_rashit_funs.py || --start 2025-06-01 --end 2025-11-30 --out .
 
-Notes:
-- Replace the placeholder polygons below with your real ones (list of (lat, lon) tuples).
-- Store paths are Windows-friendly; default output is the current folder.
-"""
+# """
 
 import argparse
 import math
@@ -51,20 +48,64 @@ def random_point_in_polygon(polygon, max_iter=1000):
 # -------------------------
 # PLACEHOLDER POLYGONS — replace with your own
 # -------------------------
-PARKING_POLYGON       = [(32.070, 34.780), (32.070, 34.786), (32.075, 34.786), (32.075, 34.780)]
-SUPER_MARKET_POLYGON  = [(32.0702, 34.7802), (32.0702, 34.7858), (32.0748, 34.7858), (32.0748, 34.7802)]
-CASH_REGISTERS_POLYGON= [(32.0740, 34.7850), (32.0740, 34.7858), (32.0748, 34.7858), (32.0748, 34.7850)]
-BUTCHERY_POLYGON      = [(32.0725, 34.7835), (32.0725, 34.7845), (32.0735, 34.7845), (32.0735, 34.7835)]
-WAREHOUSE_POLYGON     = [(32.0702, 34.7802), (32.0702, 34.7810), (32.0710, 34.7810), (32.0710, 34.7802)]
-HEAD_OFFICE_POLYGON   = [(32.0736, 34.7845), (32.0736, 34.7850), (32.0740, 34.7850), (32.0740, 34.7845)]
+PARKING_POLYGON = [
+    (31.877970, 34.738616),
+    (31.877795, 34.739125),
+    (31.878309, 34.739383),
+    (31.878472, 34.738931),
+    (31.877970, 34.738616),
+]
+
+SUPER_MARKET_POLYGON = [
+    (31.879136, 34.739282),
+    (31.877970, 34.738606),
+    (31.877594, 34.739718),
+    (31.878794, 34.740357),
+    (31.879136, 34.739282),
+]
+
+CASH_REGISTERS_POLYGON = [
+    (31.878869, 34.739347),
+    (31.878890, 34.739310),
+    (31.878688, 34.739193),
+    (31.878667, 34.739239),
+    (31.878762, 34.739285),
+    (31.878869, 34.739347),
+]
+
+BUTCHERY_POLYGON = [
+    (31.878888, 34.739959),
+    (31.878800, 34.739908),
+    (31.878740, 34.740107),
+    (31.878822, 34.740128),
+    (31.878888, 34.739959),
+]
+
+WAREHOUSE_POLYGON = [
+    (31.878300, 34.739383),
+    (31.877791, 34.739135),
+    (31.877665, 34.739517),
+    (31.878164, 34.739760),
+    (31.878300, 34.739383),
+]
+
+HEAD_OFFICE_POLYGON = [
+    (31.877656, 34.739512),
+    (31.877599, 34.739713),
+    (31.878085, 34.739977),
+    (31.878155, 34.739770),
+    (31.877656, 34.739512),
+]
+
+
 
 AREAS = {
-    "PARKING": PARKING_POLYGON,
-    "SUPERMARKET": SUPER_MARKET_POLYGON,
-    "CASH_REGISTERS": CASH_REGISTERS_POLYGON,
-    "BUTCHERY": BUTCHERY_POLYGON,
-    "WAREHOUSE": WAREHOUSE_POLYGON,
-    "HEAD_OFFICE": HEAD_OFFICE_POLYGON,
+    "parking": PARKING_POLYGON,
+    "supermarket": SUPER_MARKET_POLYGON,
+    "cash_registers": CASH_REGISTERS_POLYGON,
+    "butchery": BUTCHERY_POLYGON,
+    "warehouse": WAREHOUSE_POLYGON,
+    "head_office": HEAD_OFFICE_POLYGON,
 }
 
 # -------------------------
@@ -80,24 +121,45 @@ OPENING_RULES = {
     # Saturday closed
 }
 
-HOLIDAYS = {datetime(2024,1,23).date(), datetime(2024,5,26).date()}
-SPECIAL_DAYS = {datetime(2024,1,21).date(), datetime(2024,1,26).date()}
+HOLIDAYS = {
+    datetime(2025, 6, 2).date(),   # Shavuot – supermarket closed
+    datetime(2025, 9, 23).date(),  # Rosh Hashanah (Day 1)
+    datetime(2025, 9, 24).date(),  # Rosh Hashanah (Day 2)
+    datetime(2025,10,2).date(),    # Yom Kippur – supermarket closed
+    datetime(2025,10,7).date(),    # Sukkot – supermarket closed
+    datetime(2025,10,14).date(),   # Shemini Atzeret / Simchat Torah – closed
+}
 
+# Days with high activity, early closing, or exceptional behavior
+SPECIAL_DAYS = {
+    datetime(2025,6,1).date(),   # Shavuot Eve – big shopping spike, early close
+    # 13–24 June war period spike → we'll list key days
+    datetime(2025,6,13).date(),  # Friday – big spike, war preparation
+    datetime(2025,6,14).date(),  # Saturday – exceptional opening
+    # protest-related days
+    datetime(2025,8,17).date(),  # National strike & protest – higher sales
+    datetime(2025,8,26).date(),  # Solidarity disruptions day
+    # holiday season peaks
+    datetime(2025,9,22).date(),  # Rosh Hashanah Eve – strong spike
+    datetime(2025,10,1).date(),  # Yom Kippur Eve – strong spike
+    datetime(2025,10,6).date(),  # Sukkot Eve – strong spike
+    datetime(2025,10,13).date(), # Eve of Simchat Torah – strong spike
+}
 # -------------------------
 # Roles & staffing
 # -------------------------
 ROLE_CONFIG = {
-    "manager": {"count": 1, "accuracy_m": (5, 15)},
-    "cashier": {"count": 15, "accuracy_m": (3, 8)},
-    "butcher": {"count": 4, "accuracy_m": (3, 8)},
-    "delivery_guy": {"count": 8, "accuracy_m": (5, 15)},
+    "manager": {"count": 1, "accuracy_m": (5, 39)},
+    "cashier": {"count": 15, "accuracy_m": (1, 37)},
+    "butcher": {"count": 4, "accuracy_m": (1, 43)},
+    "delivery_guy": {"count": 8, "accuracy_m": (3, 20)},
     "general_worker": {"count": 10, "accuracy_m": (4, 12)},
     "senior_general_worker": {"count": 1, "accuracy_m": (4, 10)},
-    "security_guy": {"count": 4, "accuracy_m": (15, 40)},
-    "repeat_customer": {"count": 100, "accuracy_m": (5, 20)},
-    "one_time_customer": {"count": 400, "accuracy_m": (5, 20)},
-    "no_phone": {"count": 300, "accuracy_m": None},
-    "not_paying": {"count": 300, "accuracy_m": (5, 25)},
+    "security_guy": {"count": 4, "accuracy_m": (15, 150)},
+    "repeat_customer": {"count": 112, "accuracy_m": (4, 45)},
+    "one_time_customer": {"count": 388, "accuracy_m": (2, 34)},
+    "no_phone": {"count": 221, "accuracy_m": None},
+    "not_paying": {"count": 176, "accuracy_m": (5, 36)},
 }
 # -------------------------
 # slope - linear regression
@@ -274,7 +336,7 @@ def plan_customer_trip(date_obj, is_repeat=False, no_phone=False, not_paying=Fal
     return segs
 
 def emit_points_for_segment(device_id, role, area_key, start_dt, end_dt, detect_prob=0.4):
-    polygon = AREAS[area_key]
+    polygon = AREAS[area_key.lower()]
     ts = start_dt
     rows = []
     while ts <= end_dt:
@@ -304,8 +366,13 @@ def purchase_amount_from_dwell(dwell_minutes):
     max_subtotal = MAX_TOTAL_NIS / (1.0 + VAT_RATE)
     return max(5.0, min(amt, max_subtotal))
 
-def build_sale(customer_id, ts, dwell_minutes):
-    subtotal = round(purchase_amount_from_dwell(dwell_minutes), 2)
+def build_sale(customer_id, ts, dwell_minutes, is_no_phone=False):
+    
+    if dwell_minutes is None:
+        subtotal = round(random.uniform(20, 460), 2) # no phone
+    else:
+        subtotal = round(purchase_amount_from_dwell(dwell_minutes), 2)
+
     tax = round(subtotal * VAT_RATE, 2)
     total = round(subtotal + tax, 2)
 
@@ -317,13 +384,14 @@ def build_sale(customer_id, ts, dwell_minutes):
     return {
         "sale_id": str(uuid.uuid4())[:8],
         "timestamp": ts.isoformat(),
-        "customer_id": customer_id,
+        "customer_id": None if is_no_phone else customer_id,
         "subtotal": subtotal,
         "tax": tax,
         "total": total,
         "payment_method": payment_method,
-        "dwell_minutes": int(dwell_minutes),
+        "dwell_minutes": None if is_no_phone else int(dwell_minutes),
     }
+
 
 def sunday_of(date_obj):
     """Return the Sunday (week start) for the given date (Sun..Sat week)."""
@@ -479,7 +547,11 @@ def generate_data(start_date, end_date, out_dir):
                 if regs:
                     s,e = regs[-1]
                     dwell = sum(int((e2-s2).total_seconds()//60) for (a2,s2,e2) in segs if a2!="PARKING")
-                    sales.append(build_sale(cust_id, e, dwell))
+                    sales.append(build_sale(cust_id, e, dwell_minutes=None, is_no_phone=True))
+                else:
+                    _, _, last_end = segs[-1]
+                    sales.append(build_sale(customer_id=None, ts=last_end, dwell_minutes=None, is_no_phone=True))
+
 
         d += timedelta(days=1)
 
@@ -499,9 +571,10 @@ def generate_data(start_date, end_date, out_dir):
 # -------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start", default="2024-01-01", help="Start date YYYY-MM-DD")
-    parser.add_argument("--end",   default="2024-01-30", help="End date YYYY-MM-DD")
+    parser.add_argument("--start", default="2025-06-01", help="Start date YYYY-MM-DD")
+    parser.add_argument("--end",   default="2025-11-30", help="End date YYYY-MM-DD")
     parser.add_argument("--out",   default=".", help="Output directory (default: current folder)")
     args = parser.parse_args()
 
     generate_data(args.start, args.end, args.out)
+
